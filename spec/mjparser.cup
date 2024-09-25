@@ -1,0 +1,493 @@
+package rs.ac.bg.etf.pp1;
+
+import java_cup.runtime.*;
+
+import org.apache.log4j.*;
+import rs.ac.bg.etf.pp1.ast.*;
+import java.io.IOException;
+
+
+parser code {:
+
+	Logger log = Logger.getLogger(getClass());
+	String errorFile = "error.txt";
+	boolean errorDetected;
+       
+    public void report_fatal_error(String message, Object info) throws java.lang.Exception {
+      done_parsing();
+      report_error(message, info);
+    }
+  
+    public void syntax_error(Symbol cur_token) {
+        report_error("\nSintaksna greska", cur_token);
+    }
+  
+    public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
+        report_fatal_error("Fatalna greska, parsiranje se ne moze nastaviti", cur_token);
+    }
+
+    public void report_error(String message, Object info) {
+		errorDetected = true;
+    	StringBuilder msg = new StringBuilder(message); 
+    	if (info instanceof Symbol)
+            msg.append (" na liniji ").append(((Symbol)info).left);
+        log.error(msg.toString());
+    
+    }
+
+
+:}
+
+init with{:
+	errorDetected = false;
+
+:}
+
+scan with {:
+	Symbol s = this.getScanner().next_token();
+	if (s != null && s.value != null) 
+		log.info(s.toString() + " " + s.value.toString());
+	return s;
+:}
+
+terminal PROG;
+terminal CONST;
+terminal VOID;
+
+terminal CLASS;
+terminal EXTENDS;
+terminal NEW;
+
+terminal SEMI;
+terminal COLON;
+terminal COMMA;
+
+terminal POINT;
+
+terminal ASSIGN;
+
+terminal IF;
+terminal ELSE;
+terminal BREAK;
+terminal CONTINUE;
+terminal RETURN;
+terminal FOR;
+terminal STATIC;
+terminal NAMESPACE;
+terminal USING;
+
+terminal PRINT;
+terminal READ;
+
+terminal Character CHAR;
+terminal Boolean BOOL;
+terminal Integer NUMBER;
+terminal String IDENT;
+
+terminal LEFT_ROUND, RIGHT_ROUND;
+terminal LEFT_SQUARE, RIGHT_SQUARE;
+terminal LEFT_CURLY, RIGHT_CURLY;
+
+terminal INC;
+terminal DEC;
+terminal PLUS;
+terminal MINUS;
+terminal MUL;
+terminal DIV;
+terminal MOD;
+terminal MAX;
+
+terminal AND;
+terminal OR;
+
+terminal EQ;
+terminal NOT_EQ;
+terminal LESS;
+terminal GR;
+terminal GR_EQ;
+terminal LESS_EQ;
+
+nonterminal rs.etf.pp1.symboltable.concepts.Obj ProgName, Program;
+nonterminal DeclarList;
+
+nonterminal ConstDecl;
+nonterminal ConstDeclType;
+nonterminal FirstValueAssignment;
+nonterminal OtherConstDecl;
+
+nonterminal VarDecl;
+nonterminal VarDeclType;
+nonterminal VarDeclList;
+
+nonterminal NotLastVarDecl;
+nonterminal LastVarDecl;
+nonterminal ArrayBrackets;
+
+nonterminal StatementList;
+nonterminal Statement;
+nonterminal Label;
+nonterminal FinalStatement;
+nonterminal DesignatorStatement;
+
+nonterminal rs.etf.pp1.symboltable.concepts.Obj Designator; 
+nonterminal rs.etf.pp1.symboltable.concepts.Obj Designator1; 
+
+nonterminal rs.etf.pp1.symboltable.concepts.Struct Expr; 
+nonterminal rs.etf.pp1.symboltable.concepts.Struct Term; 
+nonterminal rs.etf.pp1.symboltable.concepts.Struct FactorList; 
+nonterminal rs.etf.pp1.symboltable.concepts.Struct Factor;
+
+nonterminal rs.etf.pp1.symboltable.concepts.Struct Type; 
+
+nonterminal Relop;
+nonterminal Addop;
+nonterminal Mulop;
+
+nonterminal Namespace, Namespaces;
+nonterminal rs.etf.pp1.symboltable.concepts.Obj MethodDecl; 
+nonterminal rs.etf.pp1.symboltable.concepts.Obj MethodTypeName; 
+nonterminal rs.etf.pp1.symboltable.concepts.Struct MethodReturnType;
+nonterminal FormalParameterDeclaration, MethodDeclList;
+nonterminal MethodVarDecl, FormPars, FormalParamList;
+nonterminal DesignatorStatList, CondFact, Condition, ActPars, DesignatorList, CondTerm;
+nonterminal IfCond, DesignatorStatementA;
+nonterminal rs.etf.pp1.symboltable.concepts.Obj FuncCallName;
+nonterminal ForLoopStart, NamespaceName;
+nonterminal ArrayName, EndOfThenBlock, ArrayName1;
+nonterminal EndOfOrCond, StartOfIf, EndOfInit, StartOfUpdate;
+nonterminal StartOfCond, CondStmt, InitStmt, UpdateStmt, ListForAssign;
+
+nonterminal ActPars1;
+
+precedence left ELSE;
+
+
+Program ::= (Program) PROG ProgName:p Namespaces DeclarList LEFT_CURLY MethodDeclList RIGHT_CURLY;
+
+ProgName ::= (ProgName) IDENT:progName;
+
+DeclarList ::= (VarDeclarList) DeclarList VarDecl
+						|
+						(ConstDeclarList) DeclarList ConstDecl
+						|
+						(NoDeclarList)	
+						;
+Namespaces ::=(FewNamespaces) Namespaces Namespace
+				|
+				(NoNamespaces)
+				;
+Namespace ::= (Namespace) NAMESPACE NamespaceName LEFT_CURLY DeclarList LEFT_CURLY MethodDeclList RIGHT_CURLY RIGHT_CURLY; 
+
+NamespaceName ::= (NamespaceName) IDENT:name;
+
+ConstDecl ::= (ConstDecl) CONST ConstDeclType FirstValueAssignment OtherConstDecl SEMI;
+
+ConstDeclType ::= (ConstDeclType) Type:constType;
+
+
+FirstValueAssignment ::= (AssignBool) IDENT:constName ASSIGN BOOL:boolConstValue
+			   			 |
+					     (AssignConst)IDENT:constName ASSIGN NUMBER:numberConstValue
+					     |
+			   		 	 (AssignChar)IDENT:constName ASSIGN CHAR:charConstValue
+			   		 	 ;
+
+OtherConstDecl ::= (FewAssigns) OtherConstDecl COMMA FirstValueAssignment
+				|
+				(NoAssigns)
+				;
+
+Type ::= (HasNamespace)IDENT:namespaceName COLON COLON IDENT:typeName
+		| 
+		(HasNoNamespace) IDENT:typeName
+		;
+
+
+
+VarDecl ::= (VarDecl) VarDeclType VarDeclList;
+
+VarDeclType ::= (VarDeclType) Type:varType;
+
+VarDeclList ::= (FewVarDecls) NotLastVarDecl VarDeclList
+				|
+				(OneVarDecl) LastVarDecl
+				;
+
+NotLastVarDecl ::= (FewVarDeclClass) IDENT:varName ArrayBrackets COMMA
+   				   |
+				   (FewErrorVarDecl) error COMMA:l
+				   {: parser.report_error("Izvrsen oporavak do , u liniji " + lleft, null); :}
+				   ;
+
+LastVarDecl ::= (VarDeclClass) IDENT:varName ArrayBrackets SEMI
+				|
+				(ErrorVarDecl) error SEMI:l
+				 {: parser.report_error("Izvrsen oporavak do ; u liniji " + lleft, null); :}	 
+				;
+
+
+
+ArrayBrackets ::= (IsArray) LEFT_SQUARE RIGHT_SQUARE
+				  |
+				  (IsNotArray)
+				  ;
+
+
+
+StatementList ::= (FewStatements) StatementList Statement
+				  |
+				  (NoStatements)
+				  ;
+
+Statement ::= (Stmt) FinalStatement
+			  |
+			  (Stmts) LEFT_CURLY StatementList RIGHT_CURLY 
+			  ;
+
+Label ::= (Label) IDENT:labelName;
+
+FinalStatement ::=  (AssignStmt) DesignatorStatementA
+					|
+					(PrintNoWidth) PRINT LEFT_ROUND Expr RIGHT_ROUND SEMI
+					|
+					(PrintWidth) PRINT LEFT_ROUND Expr COMMA NUMBER:width RIGHT_ROUND SEMI
+					|
+					(Read) READ LEFT_ROUND Designator RIGHT_ROUND SEMI
+					| 
+					(Break) BREAK SEMI
+					|
+					(Continue) CONTINUE SEMI
+					|
+					(ReturnExpr) RETURN Expr:t SEMI
+					| 
+					(NoReturnExpr) RETURN SEMI
+					|
+					(NoElse) IfCond Statement 
+					|
+					(HasElse) IfCond Statement ELSE EndOfThenBlock Statement
+					|
+					 (UsingStmt) USING IDENT:name SEMI
+					 |
+					(For) FOR LEFT_ROUND InitStmt StartOfCond SEMI CondStmt SEMI UpdateStmt RIGHT_ROUND ForLoopStart Statement
+					;	
+					
+StartOfUpdate ::= (StartOfUpdate) ;
+EndOfThenBlock ::=(EndOfThenBlock) ;
+ForLoopStart ::= (ForLoopStart) ;		
+
+CondStmt ::= (HasCondFact) CondFact
+			|
+			(HasNoCondFact)
+			;
+
+
+InitStmt ::= (FewDesStmts) InitStmt COMMA DesignatorStatement
+					   |
+					   (OneDesStmt) DesignatorStatement
+					   |
+					   (NoDesStmt)
+					   ;
+
+UpdateStmt ::= (FewDesStmtsU) UpdateStmt COMMA DesignatorStatement
+					   |
+					   (OneDesStmtU) DesignatorStatement
+					   |
+					   (NoDesStmtU)
+					   ;
+
+
+StartOfCond ::= (StartOfCond) ;
+
+IfCond ::= (NormalIf) IF LEFT_ROUND StartOfIf Condition RIGHT_ROUND 
+			|
+			(ErrorIf) IF LEFT_ROUND error:l RIGHT_ROUND
+			{: parser.report_error("Izvrsen oporavak do ) u liniji " + lleft, null); :}
+			;
+StartOfIf ::= (StartOfIf) ;
+
+
+
+CondFact ::= (OneExpr) Expr:e
+			|
+			(FewExpr) Expr:el Relop Expr:er
+			;
+
+DesignatorStatementA ::=(AssignDesA) Designator:dest ASSIGN Expr:e SEMI
+						|
+						(ErrorDesA) error SEMI:l
+						{: parser.report_error("Izvrsen oporavak do ; u liniji " + lleft, null); :}
+						|
+						(IncDesA) Designator:variableName INC SEMI
+						|
+						(DecDesA) Designator:variableName DEC SEMI
+						 |
+						 (FuncCallNoArgA) FuncCallName LEFT_ROUND RIGHT_ROUND SEMI
+						 |
+						 (FuncCallArgsA) FuncCallName LEFT_ROUND ActPars RIGHT_ROUND SEMI
+						 |
+						 (AssignFewA) ListForAssign ASSIGN Designator SEMI
+						;
+
+
+
+ActPars1 ::= ActPars
+			|
+			;	
+			 					
+FuncCallName ::= (FuncCallName) Designator:funcName;
+
+DesignatorStatement ::=  (AssignDes) Designator:dest ASSIGN Expr:e
+						|
+						(IncDes) Designator:variableName INC
+						|
+						(DecDes) Designator:variableName DEC
+						 |
+						(FuncCallNoArg) FuncCallName LEFT_ROUND RIGHT_ROUND
+						 |
+						 (FuncCallArgs) FuncCallName LEFT_ROUND ActPars RIGHT_ROUND
+						 |
+						(AssignFew) ListForAssign ASSIGN Designator
+						;
+						
+ListForAssign ::= (ListForAssign) LEFT_SQUARE DesignatorList MUL Designator RIGHT_SQUARE;
+
+ActPars ::= (FewActPars) ActPars COMMA Expr
+			|
+			(OneActPars) Expr
+			;
+
+DesignatorList ::= (DesingListNoDes) DesignatorList COMMA 
+					| 
+				    (DesingListDes) DesignatorList Designator1 COMMA
+					|
+					(NoDesingList)
+					;
+			
+Condition ::= (FewConditions) Condition EndOfOrCond OR CondTerm
+			 |
+			 (OneCondition) CondTerm
+			 ;
+			 
+EndOfOrCond ::= (EndOfOrCond) ;
+CondTerm ::= (FewCondTerms) CondTerm AND CondFact
+			|
+			(OneCondTerm) CondFact
+			;
+Designator1 ::= (HasNamespaceDesNoArray1) IDENT:namespaceName COLON COLON IDENT:name
+				|
+				(HasNoNamespaceDesNoArray1) IDENT:name
+				|
+				(DesArray1) ArrayName1 LEFT_SQUARE Expr:arrayIndex RIGHT_SQUARE
+				;	
+
+ArrayName1 ::= (ArrayName1) Designator1;
+
+Designator ::= (HasNamespaceDesNoArray) IDENT:namespaceName COLON COLON IDENT:name
+				|
+				(HasNoNamespaceDesNoArray) IDENT:name
+				|
+				(DesArray) ArrayName LEFT_SQUARE Expr:arrayIndex RIGHT_SQUARE
+				;				
+			   
+ArrayName ::= (ArrayName) Designator;
+
+
+Expr ::= (MinTerm) MINUS Term
+		 |
+		 (Summing) Expr Addop Term
+		 |
+		 (OneTerm) Term
+		 ;
+
+Term ::=(Term)FactorList;
+
+FactorList ::= (FewFactors) FactorList Mulop Factor
+			   |
+			   (OneFactor) Factor
+			   ;
+
+Factor ::= (FactorDes) Designator:variableName
+		   |
+		   (FactorFuncCallNoArg) FuncCallName LEFT_ROUND RIGHT_ROUND
+		   |
+           (FactorFuncCallArgs) FuncCallName LEFT_ROUND ActPars RIGHT_ROUND
+  		   |
+		   (FactorNum) NUMBER:constValue
+		   |
+		   (FactorChar) CHAR:constValue
+		   |
+		   (FactorBool) BOOL:constValue
+		   |
+		   (MaxOfArray) MAX Designator:variableName
+		   |
+		   (FactorNewArray) NEW Type:arrayName LEFT_SQUARE Expr:arrayIndex RIGHT_SQUARE
+		   |
+		   (FactorHasBrackets) LEFT_ROUND Expr:innerExpression RIGHT_ROUND
+		   ;
+		
+	
+
+Relop ::= (E) EQ
+		  | 
+		  (NE) NOT_EQ
+		  | 
+		  (LS) LESS
+		  | 
+		  (GR) GR
+		  | 
+		  (GRE) GR_EQ
+		  | 
+		  (LSE) LESS_EQ
+		  ;
+
+Addop ::= (Plus) PLUS
+		  |
+		  (Minus) MINUS
+		  ;
+
+Mulop ::= (Mul) MUL
+		  |
+		  (Div) DIV
+		  |
+		  (Mod) MOD
+		  ;
+		  
+MethodDeclList ::= (FewMethods) MethodDeclList MethodDecl
+				   |
+				   (NoMethods)
+				   ;
+
+MethodDecl ::= (MethodDecl) MethodTypeName LEFT_ROUND FormPars MethodVarDecl LEFT_CURLY StatementList RIGHT_CURLY;
+
+MethodTypeName ::= (MethodTypeName)  MethodReturnType IDENT:methName;
+
+MethodReturnType ::= (HasReturnType)  Type:retType
+					 |
+					 (HasNoReturnType) VOID
+					 ;
+
+MethodVarDecl ::= (FewMethodVars) MethodVarDecl VarDecl
+				  |
+				  (NoMethodVars)
+				  ;
+
+
+FormPars ::= (HasParams) FormalParamList
+			 |
+			 (NoParams) RIGHT_ROUND
+			 ;
+			
+FormalParamList ::= (FewFormalParams) FormalParameterDeclaration COMMA FormalParamList
+	 				|
+					(OneFormalPar) FormalParameterDeclaration RIGHT_ROUND
+	 				|
+					(ErrorFormalParams) error COMMA FormalParamList
+	 				|
+					(ErrorFormalParam) error RIGHT_ROUND
+					;
+
+FormalParameterDeclaration ::= (FormalParameterDeclaration) Type:parameterType IDENT:parameterName ArrayBrackets;
+
+
+
+
